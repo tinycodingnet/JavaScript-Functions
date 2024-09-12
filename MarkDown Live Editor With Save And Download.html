@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MarkDown Live Editor</title>
+    <script src="parser.js"></script>
+    <script src="purify.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 50px;
+        }
+
+        header {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        header a {
+            margin: 0 15px;
+            text-decoration: none;
+            color: #333;
+        }
+
+        header a:hover {
+            text-decoration: underline;
+        }
+
+        .container {
+            display: flex;
+            height: calc(100vh - 100px);
+        }
+
+        #editor {
+            background-color: #eee;
+            overflow-y: auto;
+            margin-right: 1%;
+        }
+
+        #editor,
+        #result {
+            width: 49%;
+            padding: 20px;
+            box-sizing: border-box;
+            border: none;
+            outline: none;
+            font-size: 18px;
+            border-radius: 4px;
+        }
+
+        #result {
+            background-color: #f5f5f5;
+            overflow-y: auto;
+        }
+
+        input[type="text"] {
+            width: calc(49%);
+            border: 2px solid #333;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            padding: 10px;
+            font-size: 18px;
+            box-sizing: border-box;
+        }
+
+        .menu-toggle {
+            display: none;
+        }
+
+        .off-canvas-menu-display {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            font-size: 24px;
+            cursor: pointer;
+            z-index: 1000;
+        }
+
+        .right-menu {
+            position: fixed;
+            top: 0;
+            right: -100%;
+            width: 300px;
+            height: 100%;
+            background-color: #333;
+            color: white;
+            transition: right 0.3s ease;
+            padding: 20px;
+            box-shadow: -2px 0 5px rgba(0, 0, 0, 0.5);
+        }
+
+        .menu-toggle:checked + .off-canvas-menu-display + .right-menu {
+            right: 0;
+        }
+
+        .close-button {
+            display: block;
+            margin-bottom: 20px;
+            cursor: pointer;
+            color: white;
+            font-size: 18px;
+        }
+
+        .right-menu a {
+            display: block;
+            color: white;
+            text-decoration: none;
+            margin: 10px 0;
+        }
+
+        .right-menu a:hover {
+            text-decoration: underline;
+        }
+
+        hr {
+            margin: 30px 0;
+        }
+
+        @media (max-width: 800px) {
+            .container {
+                flex-direction: column;
+                height: auto;
+            }
+
+            #editor,
+            #result {
+                width: 100%;
+                margin-right: 0;
+                min-height: 400px;
+            }
+
+            #editor {
+                margin-bottom: 20px;
+            }
+
+            input[type="text"] {
+                width: 100%;
+            }
+
+            .right-menu {
+                width: 300px;
+                right: -100%;
+                transition: right 0.3s ease;
+            }
+
+            .menu-toggle:checked + .off-canvas-menu-display + .right-menu {
+                right: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>Artikel Redigerare</h1>
+        <nav>
+            <a href="javascript:void(0);" onclick="clearText()">Clear MD</a>
+            <a href="javascript:void(0);" onclick="copymdText()">Copy MD</a>
+            <a href="javascript:void(0);" onclick="downloadmdFile()">Download MD</a>
+            <a href="javascript:void(0);" onclick="saveFile()">Save MD</a>
+        </nav>
+    </header>
+
+    <!-- Text input for markdown file name -->
+    <input type="text" id="fileNameInput" placeholder="MD file name">
+
+    <div class="container">
+        <textarea id="editor" placeholder="Write your MD here..."></textarea>
+        <div id="result"></div>
+    </div>
+
+    <input type="checkbox" id="menuToggle" class="menu-toggle">
+    <label for="menuToggle" class="off-canvas-menu-display">&#9776;</label>
+    <div class="right-menu" id="rightMenu">
+        <label for="menuToggle" class="close-button">STÄNG</label>
+        <a href="#" class="">Link 1</a>
+        <a href="#" class="">Link 2</a>
+        <a href="#" class="">Link 3</a>
+        <hr>
+        <a href="#" class="">Link 1</a>
+        <a href="#" class="">Link 2</a>
+        <a href="#" class="">Link 3</a>
+    </div>
+
+    <script>
+        const editor = document.getElementById('editor');
+        const result = document.getElementById('result');
+        const fileNameInput = document.getElementById('fileNameInput');
+
+        // Create a shadow root for result div
+        const shadowRoot = result.attachShadow({ mode: 'open' });
+
+        // Markdown rendering and sanitization
+        editor.addEventListener('input', () => {
+            const rawHTML = marked(editor.value);
+            const cleanHTML = DOMPurify.sanitize(rawHTML);
+
+            // Clear the shadow root before rendering new content
+            shadowRoot.innerHTML = '';
+
+            // Create a style element for scoped CSS (only applies to the HTML render)
+            const styleElement = document.createElement('style');
+            styleElement.textContent = `
+                :host div {
+                    font-family: "Courier New", Courier, monospace;
+                    color: #333;
+                }
+
+                :host h1, :host h2, :host h3 {
+                    color: darkblue;
+                }
+
+                :host p {
+                    line-height: 1.5;
+                    margin: 20px 0;
+                }
+            `;
+
+            // Create a div to hold the sanitized HTML
+            const contentDiv = document.createElement('div');
+            contentDiv.innerHTML = cleanHTML;
+
+            // Append the style and content to the shadow root
+            shadowRoot.appendChild(styleElement);
+            shadowRoot.appendChild(contentDiv);
+        });
+
+        // Clear markdown text
+        function clearText() {
+            editor.value = '';
+            shadowRoot.innerHTML = ''; // Clear content from the shadow DOM
+        }
+
+        // Copy markdown text to clipboard
+        function copymdText() {
+            const mdText = editor.value;
+            if (mdText) {
+                navigator.clipboard.writeText(mdText).then(() => {
+                    alert("Markdown text copied to clipboard!");
+                }).catch(err => {
+                    console.error("Failed to copy text: ", err);
+                });
+            } else {
+                alert("There is no text to copy.");
+            }
+        }
+
+        // Download markdown file
+        function downloadmdFile() {
+            const fileName = fileNameInput.value.trim();
+            const mdText = editor.value;
+
+            // Check if file name is empty
+            if (!fileName) {
+                alert("Markdown File Name Cannot Be Empty");
+                return;
+            }
+
+            // Check if file name contains special characters
+            const specialChars = /[<>:"/\\|?*]/;
+            if (specialChars.test(fileName)) {
+                alert("Markdown File Name Cannot Contain Any Special Characters");
+                return;
+            }
+
+            // Convert file name to use hyphens instead of spaces
+            const sanitizedFileName = fileName.replace(/\s+/g, '-');
+
+            // Create a blob with the markdown content
+            const blob = new Blob([mdText], { type: 'text/markdown' });
+            const downloadLink = document.createElement('a');
+            downloadLink.href = URL.createObjectURL(blob);
+            downloadLink.download = `${sanitizedFileName}.md`;
+
+            // Programmatically click the link to trigger the download
+            downloadLink.click();
+        }
+
+        // Save markdown file to a specific folder
+        function saveFile() {
+            const fileName = fileNameInput.value.trim();
+            const mdText = editor.value;
+
+            // Check if file name is empty
+            if (!fileName) {
+                alert("Markdown File Name Cannot Be Empty");
+                return;
+            }
+
+            // Check if file name contains special characters
+            const specialChars = /[<>:"/\\|?*]/;
+            if (specialChars.test(fileName)) {
+                alert("Markdown File Name Cannot Contain Any Special Characters");
+                return;
+            }
+
+            // Convert file name to use hyphens instead of spaces
+            const sanitizedFileName = fileName.replace(/\s+/g, '-');
+
+            // Create a blob with the markdown content
+            const blob = new Blob([mdText], { type: 'text/markdown' });
+            const downloadLink = document.createElement('a');
+            downloadLink.href = URL.createObjectURL(blob);
+
+            // make sure to change the directory name into your own
+            downloadLink.download = `/markdown-files/${sanitizedFileName}.md`;
+
+            // Programmatically click the link to trigger the download
+            downloadLink.click();
+        }
+    </script>
+</body>
+</html>
